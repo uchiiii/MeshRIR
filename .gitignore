@@ -2,3 +2,14 @@ _site/
 Gemfile
 Gemfile.lock
 .DS_Store
+
+# cache files
+__MACOSX
+__pycache__
+
+# data
+data*
+S1-M3969_npy
+
+# editor 
+.vscode
