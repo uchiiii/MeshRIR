@@ -10,6 +10,7 @@ __pycache__
 # data
 data*
 S1-M3969_npy
+S32-M441_npy
 
 # editor 
 .vscode
