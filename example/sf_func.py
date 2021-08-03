@@ -2,6 +2,8 @@ import numpy as np
 import scipy.special as special
 import scipy.spatial.distance as distfuncs
 
+from tqdm import tqdm
+from optimize import MKL
 
 def cart2sph(x, y, z):
     """Conversion from Cartesian to spherical coordinates
@@ -273,12 +275,85 @@ def kiFilterGen(k, posMic, posEst, filterLen=None, smplShift=None):
     distVec = np.transpose(distfuncs.cdist(posEst, posMic), (1, 0))[None, :, :]
     kappa = special.spherical_jn(0, k * distVec)
     kiTF = np.transpose(kappa, (0, 2, 1)) @ Kinv
-    kiTF = np.concatenate((np.zeros((1, numEst, numMic)), kiTF, kiTF[int(fftlen/2)-2::-1, :, :].conj()))
-    kiFilter = np.fft.ifft(kiTF, n=fftlen, axis=0).real
+    # kiTF = np.concatenate((np.zeros((1, numEst, numMic)), kiTF, kiTF[int(fftlen/2)-2::-1, :, :].conj()))
+    # kiFilter = np.fft.ifft(kiTF, n=fftlen, axis=0).real
+
+    kiFilter = np.fft.irfft(kiTF, n=fftlen, axis=0).real
     kiFilter = np.concatenate((kiFilter[fftlen-smplShift:fftlen, :, :], kiFilter[:filterLen-smplShift, :, :]))
+
 
     return kiFilter
 
+def normal_kernel(k, beta, eta, x, y):
+    distMat = distfuncs.cdist(x, y)
+    return special.spherical_jn(0, k * distMat)
+
+def directional_kernel(k, beta, eta, x, y):
+    theta = np.pi / 2.0
+    n = x.shape[0]
+    m = y.shape[0]
+    rDiffMat = np.tile(x[:, None, :], (1, m, 1)) - np.tile(y[None, :, :], (n, 1, 1))
+    distMat = np.sqrt((1j*beta*np.sin(theta)*np.cos(eta) - k*rDiffMat[:, :, 0])**2 + (1j*beta*np.sin(theta)*np.sin(eta) - k*rDiffMat[:, :, 1])**2 + (1j*beta*np.cos(theta) - k*rDiffMat[:, :, 2])**2)
+    return special.spherical_jn(0, distMat)
+
+def kernel(k, beta, eta):
+    return lambda x, y: directional_kernel(k, beta, eta, x, y).astype(complex)
+
+# @jit(nopython=False, parallel=True)
+def create_subkernel(k):
+    subkernels = []
+    d_beta = 10
+    d_eta = 10
+    betas = np.arange(0.0, 9.1, 1.0)
+    etas = np.arange(-np.pi, np.pi, 2 * np.pi / d_eta)
+    for beta in betas:
+        for eta in etas:
+            subkernels.append(kernel(k, beta, eta))
+    return subkernels
+
+# @jit(nopython=False, parallel=True)
+def kiFilterGenWithOpt(k, posMic, posEst, sigMic, constraint='l2', filterLen=None, smplShift=None):
+    numMic = posMic.shape[0]
+    numEst = posEst.shape[0]
+    numFreq = k.shape[0]
+    fftlen = numFreq*2
+    reg = 1e-1
+
+    if filterLen is None:
+        filterLen = numFreq+1
+    if smplShift is None:
+        smplShift = numFreq/2
+
+    # initialize KiTF with kiFilterGen function
+    # k = k[:, None, None]
+    # distMat = distfuncs.cdist(posMic, posMic)[None, :, :].astype(complex)
+    # K = special.spherical_jn(0, k * distMat).astype(complex)
+    # Kinv = np.linalg.inv(K + reg * np.eye(numMic)[None, :, :])
+    # distVec = np.transpose(distfuncs.cdist(posEst, posMic), (1, 0))[None, :, :]
+    # kappa = special.spherical_jn(0, k * distVec)
+    # kiTF = np.transpose(kappa, (0, 2, 1)) @ Kinv
+
+    # To pick up CNT frequencies to be optimized with power
+    # CNT = 20000
+    # optimized_idx = np.sum(np.abs(sigMic[:, numFreq:]), axis=0).argsort()[-CNT:]
+    # print("{} frequencies are optimized according to PW", optimized_idx.shape[0])
+
+    kiTF = np.zeros((numFreq, numEst, numMic), dtype=np.complex128)
+    # for idx in tqdm(optimized_idx):
+        # ki = k[idx]
+    for idx, ki in enumerate(k):
+        # if idx == 0:
+        #     continue
+        mkl = MKL(create_subkernel(ki), posMic, sigMic[:, idx])
+        q = mkl.optimize(algo=constraint)
+        kiTF[idx, :, :] = mkl.get_estimated_filter(posEst)
+
+    kiTF = np.concatenate((np.zeros((1, numEst, numMic)), kiTF, kiTF[int(fftlen/2)-2::-1, :, :].conj()))
+    kiFilter = np.fft.ifft(kiTF, n=fftlen, axis=0).real
+    # kiFilter = np.fft.irfft(kiTF, axis=0)
+    # fftlen = kiFilter.shape[0]
+    kiFilter = np.concatenate((kiFilter[fftlen-smplShift:fftlen, :, :], kiFilter[:filterLen-smplShift, :, :]))
+    return kiFilter
 
 def kiFilterGenDir(k, posMic, posEst, angSrc, betaSrc, filterLen=None, smplShift=None):
     """Kernel interpolation filter with directional weighting for estimating pressure distribution from measurements
