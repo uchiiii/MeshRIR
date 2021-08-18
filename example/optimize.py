@@ -2,21 +2,7 @@ import numpy as np
 import scipy.special as special
 import scipy.spatial.distance as distfuncs
 
-# import numba
-# from numba.experimental import jitclass
 
-# spec = [
-#         ("lamb", numba.complex128),
-# 		("x", numba.complex128[:, :]),
-# 		("y", numba.complex128[:]),
-#         ("d", numba.int64),
-# 		("K", numba.complex128[:, :, :]),
-# 		("invK", numba.complex128[:, :]),
-# 		("alpha", numba.complex128[:]),
-# 		("kappa", numba.complex128[:, :])
-#     ]
-
-# @jitclass(spec)
 class MKL:
 	"""
 	MKL(Multiple Kernel Learning)

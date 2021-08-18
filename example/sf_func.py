@@ -348,10 +348,10 @@ def kiFilterGenWithOpt(k, posMic, posEst, sigMic, constraint='l2', filterLen=Non
         q = mkl.optimize(algo=constraint)
         kiTF[idx, :, :] = mkl.get_estimated_filter(posEst)
 
-    kiTF = np.concatenate((np.zeros((1, numEst, numMic)), kiTF, kiTF[int(fftlen/2)-2::-1, :, :].conj()))
-    kiFilter = np.fft.ifft(kiTF, n=fftlen, axis=0).real
-    # kiFilter = np.fft.irfft(kiTF, axis=0)
-    # fftlen = kiFilter.shape[0]
+    # kiTF = np.concatenate((np.zeros((1, numEst, numMic)), kiTF, kiTF[int(fftlen/2)-2::-1, :, :].conj()))
+    # kiFilter = np.fft.ifft(kiTF, n=fftlen, axis=0).real
+    kiFilter = np.fft.irfft(kiTF, axis=0)
+    fftlen = kiFilter.shape[0]
     kiFilter = np.concatenate((kiFilter[fftlen-smplShift:fftlen, :, :], kiFilter[:filterLen-smplShift, :, :]))
     return kiFilter
 

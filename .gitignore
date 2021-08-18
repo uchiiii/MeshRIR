@@ -6,11 +6,15 @@ Gemfile.lock
 # cache files
 __MACOSX
 __pycache__
+example/sf_*.md
+example/*.pdf
+example/output
 
 # data
 data*
 S1-M3969_npy
 S32-M441_npy
+jsut_ver1.1
 
 # editor 
 .vscode
