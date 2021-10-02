@@ -319,10 +319,12 @@ def kiFilterGenWithOpt(k, posMic, posEst, sigMic, constraint='l2', filterLen=Non
     fftlen = numFreq*2
     reg = 1e-1
 
-    if filterLen is None:
-        filterLen = numFreq+1
-    if smplShift is None:
-        smplShift = numFreq/2
+    # if filterLen is None:
+    #     filterLen = numFreq+1
+    # if smplShift is None:
+    #     smplShift = numFreq/2
+    assert filterLen != None
+    assert smplShift != None
 
     # initialize KiTF with kiFilterGen function
     # k = k[:, None, None]

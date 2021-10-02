@@ -75,7 +75,7 @@ class MKL:
 
 			parial_J = np.zeros(self.d, dtype=np.complex128)
 			for i in range(self.d):
-				parial_J[i] = -alpha.conj() @ self.K[i] @ alpha
+				parial_J[i] = - self.lamb * alpha.conj() @ self.K[i] @ alpha
 			parial_J = parial_J.real
 
 			dJmin = np.min(parial_J[q > 0.0])
